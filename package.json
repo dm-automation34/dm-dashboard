@@ -1,15 +1,26 @@
 {
-  "name": "my-react-app",
+  "name": "my-app",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "cross-env": "^7.0.3",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.111",
+    "@types/react": "^18.3.9",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-gauge-chart": "^0.4.3",
+    "antd": "^5.21.1",
+    "browserify-zlib": "^0.2.0",
+    "next": "^14.2.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-gauge-chart": "^0.5.1",
     "react-scripts": "5.0.1",
+    "stream-browserify": "^3.0.0",
+    "swiper": "^11.1.14",
+    "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -21,10 +32,8 @@
     "deploy": "npm run build && npm run upload-fe && npm run unzip-deploy && npm run start-fe",
     "upload-fe": "scp -i ~/.ssh/digitalocean build/build.zip root@20.20.8.59:/home/app/dashboard/",
     "unzip-deploy": "ssh -i ~/.ssh/digitalocean root@20.20.8.59 'cd /home/app/dashboard && rm -rf build && unzip build.zip -d /home/app/dashboard/ && rm build.zip'",
-    "start-fe": "ssh -i ~/.ssh/digitalocean root@20.20.8.59 'pm2 restart my-react-app'",
-    "start": "react-scripts start",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start-fe": "ssh -i ~/.ssh/digitalocean root@20.20.8.59 'pm2 restart dashboard'",
+    "start": "react-scripts start"
   },
   "eslintConfig": {
     "extends": [
@@ -43,9 +52,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3",
-    "dotenv-cli": "^7.4.2"
   }
 }
