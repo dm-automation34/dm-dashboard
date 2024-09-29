@@ -219,6 +219,7 @@ const defaultMachineData: MachineDataType = {
 };
 
 const KayanYazi: React.FC = () => {
+  const token = "alves123";
   const textRef = useRef<HTMLParagraphElement>(null);
   const [textHeight, setTextHeight] = useState(0);
   const [machine1Data, setMachine1Data] =
@@ -237,7 +238,7 @@ const KayanYazi: React.FC = () => {
 
     // Eğer machine1 varsa WebSocket bağlantısı kurulur
     if (machine1) {
-      socket1 = new WebSocket("ws://192.168.0.242:8080");
+      socket1 = new WebSocket(`ws://192.168.0.242:8080?token=${token}`);
       socket1.onopen = () => {
         socket1!.send(JSON.stringify({ machineId: machine1 }));
       };
@@ -272,7 +273,7 @@ const KayanYazi: React.FC = () => {
 
     // Eğer machine2 varsa WebSocket bağlantısı kurulur
     if (machine2) {
-      socket2 = new WebSocket("ws://192.168.0.242:8080");
+      socket2 = new WebSocket(`ws://192.168.0.242:8080?token=${token}`);
       socket2.onopen = () => {
         socket2!.send(JSON.stringify({ machineId: machine2 }));
       };
