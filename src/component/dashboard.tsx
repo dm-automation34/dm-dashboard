@@ -2,18 +2,17 @@ import React, { useEffect, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useParams } from "react-router-dom";
 
-// Kayan yazı animasyonu
+// Animasyonlar
 const kayan = keyframes`
   0% {
-    transform: translateX(100vw); // Start completely off-screen on the right
+    transform: translateX(100vw);
   }
   100% {
-    transform: translateX(-100%); // Move all the way to the left
+    transform: translateX(-100%);
   }
 `;
 
-// Yanıp sönen kutu animasyonu
-const flash = keyframes`    
+const flash = keyframes`
   0%, 100% {
     opacity: 1;
   }
@@ -22,7 +21,7 @@ const flash = keyframes`
   }
 `;
 
-// Stil bileşenleri
+// Stil Bileşenleri
 const KayanYaziContainer = styled.div<{ textHeight: number }>`
   white-space: nowrap;
   overflow: hidden;
@@ -49,7 +48,6 @@ const KayanYaziText = styled.p`
   z-index: 1;
 `;
 
-// Sabit yazı (sabit yazı için stil - en altta olacak şekilde ayarlandı)
 const FixedText = styled.div`
   font-size: calc(20px + 1vw);
   font-weight: bold;
@@ -61,14 +59,13 @@ const FixedText = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 50px; // Yükseklik sabit mesaj kutusu için ayarlandı
+  height: 50px;
   background-color: lightblue;
   border-top: 5px solid black;
   padding: 10px 0;
   z-index: 10;
 `;
 
-// Yanıp sönen yazı (en altta olacak şekilde ayarlandı)
 const FlashingText = styled.div`
   font-size: calc(20px + 1vw);
   font-weight: bold;
@@ -80,7 +77,7 @@ const FlashingText = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 50px; // Yükseklik yanıp sönen mesaj kutusu için ayarlandı
+  height: 50px;
   background-color: lightblue;
   border-top: 5px solid black;
   padding: 10px 0;
@@ -88,7 +85,6 @@ const FlashingText = styled.div`
   animation: ${flash} 1.5s infinite;
 `;
 
-// Sayfanın ortasında iki sütun yapısı
 const Container = styled.div<{ textHeight: number }>`
   display: flex;
   flex-direction: column;
@@ -100,7 +96,6 @@ const Container = styled.div<{ textHeight: number }>`
   z-index: 0;
 `;
 
-// Üstteki ince border ile metinleri taşıyan alan
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -125,7 +120,6 @@ const HeaderText = styled.div`
   }
 `;
 
-// İçerik alanı: Sol ve sağ sütunlar
 const Content = styled.div`
   display: flex;
   flex: 1;
@@ -133,10 +127,9 @@ const Content = styled.div`
   max-width: 100vw;
 `;
 
-// Sol taraf (renk dinamik olarak uygulanır)
 const LeftColumn = styled.div<{ bgColor: string }>`
   flex: 1;
-  background-color: ${(props) => props.bgColor}; // Dinamik arka plan rengi
+  background-color: ${(props) => props.bgColor};
   display: flex;
   justify-content: center;
   align-items: normal;
@@ -158,10 +151,9 @@ const LeftColumn = styled.div<{ bgColor: string }>`
   }
 `;
 
-// Sağ taraf (renk dinamik olarak uygulanır)
 const RightColumn = styled.div<{ bgColor: string }>`
   flex: 1;
-  background-color: ${(props) => props.bgColor}; // Dinamik arka plan rengi
+  background-color: ${(props) => props.bgColor};
   display: flex;
   justify-content: center;
   align-items: normal;
@@ -183,197 +175,176 @@ const RightColumn = styled.div<{ bgColor: string }>`
   }
 `;
 
-// Dummy JSON data with colors
-const dummyData = {
-  header: {
-    left: "2,88 mm ALUMİNYUM TEL",
-    right: "1,74 mm BAKIR İLETKEN",
-  },
-  leftColumn: {
-    target: "6 m/sn",
-    average: "6 m/sn",
-    current: "5 m/sn",
-    efficiency: "%92",
-    color: "#4caf50", // Green color for left column
-  },
-  rightColumn: {
-    target: "12 m/sn",
-    average: "3 m/sn",
-    current: "3 m/sn",
-    efficiency: "%68",
-    color: "#ff9800", // Orange color for right column
-  },
-};
-
-// MessageType
-interface MessageType {
-  type: "scrolling" | "fixed" | "blinking";
-  message: string;
-  start: string;
-  end: string;
+interface MachineDataType {
+  name: string;
+  target?: string;
+  average?: string;
+  current?: string;
+  efficiency: string;
+  color: string;
 }
 
+const defaultMachineData: MachineDataType = {
+  name: "",
+  target: undefined,
+  average: undefined,
+  current: undefined,
+  efficiency: "-",
+  color: "#cccccc", // Default gri renk
+};
+
+// Main component
 const KayanYazi: React.FC = () => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [textHeight, setTextHeight] = useState(0);
-  const [activeMessage, setActiveMessage] = useState<MessageType | null>(null);
+  const [machine1Data, setMachine1Data] =
+    useState<MachineDataType>(defaultMachineData);
+  const [machine1DataCopy, setMachine1DataCopy] =
+    useState<MachineDataType>(defaultMachineData);
+  const [machine2Data, setMachine2Data] =
+    useState<MachineDataType>(defaultMachineData);
 
   // Extract parameters from the URL path instead of query params
-  const { tvid, machine1, machine2 } = useParams<{
-    tvid: string;
+  const { machine1, machine2 } = useParams<{
     machine1: string;
-    machine2: string;
+    machine2?: string;
   }>();
 
+  // WebSocket connections for both machines
   useEffect(() => {
-    // Log the parameters from the URL
-    console.log("TV ID:", tvid);
-    console.log("Machine 1:", machine1);
-    console.log("Machine 2:", machine2);
-  }, [tvid, machine1, machine2]);
+    // WebSocket connection for machine 1
+    const socket1 = new WebSocket("ws://192.168.0.242:8080");
+    socket1.onopen = () => {
+      socket1.send(JSON.stringify({ machineId: machine1 }));
+    };
+    socket1.onmessage = (event) => {
+      const { data } = JSON.parse(event.data);
+      console.log("Machine 1 data:", data);
+      debugger;
+      setMachine1Data({
+        name: data.itemName,
+        target: convertValue(data.targetSpeed),
+        average: convertValue(data.averageSpeed),
+        current: convertValue(data.actualSpeed),
+        efficiency: convertValue(
+          (
+            (parseFloat(data.averageSpeed) / parseFloat(data.targetSpeed)) *
+            100
+          ).toString()
+        ),
+        color: "#4caf50", // Example color for machine 1
+      });
+    };
+    // 0 -kırmızı
+    // 0-75 - sarı
+    // 75 ten büyükse yeşi
 
-  // Example messages with different types
-  const messages: MessageType[] = [
-    {
-      start: "14:57",
-      end: "14:58",
-      message: "SAAT 11:10-11:30 ARASINDA İŞ GÜVENLİĞİ TOPLANTISI",
-      type: "scrolling",
-    },
-    {
-      start: "14:58",
-      end: "14:59",
-      message: "SAAT 13:15-13:50 ARASINDA EĞİTİM",
-      type: "fixed",
-    },
-    {
-      start: "14:59",
-      end: "15:00",
-      message: "ACİL DURUM: BÖLGE BOŞALTILACAKTIR",
-      type: "blinking",
-    },
-  ];
+    // popup=>75 altında ise sebeb yazacak
+    socket1.onclose = () => {
+      console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
+    };
 
-  const checkMessage = () => {
-    const now = new Date();
-    const currentTime = `${now.getHours()}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-
-    const active = messages.find(
-      (msg) => currentTime >= msg.start && currentTime < msg.end
-    );
-    if (active) {
-      setActiveMessage(active);
-    } else {
-      setActiveMessage(null);
+    // WebSocket connection for machine 2 (if defined)
+    let socket2: WebSocket | null = null;
+    if (machine2) {
+      socket2 = new WebSocket("ws://192.168.0.242:8080");
+      socket2.onopen = () => {
+        socket2!.send(JSON.stringify({ machineId: machine2 }));
+      };
+      socket2.onmessage = (event) => {
+        const { data } = JSON.parse(event.data);
+        console.log("Machine 2 data:", data);
+        setMachine2Data({
+          name: data.itemName,
+          target: convertValue(data.targetSpeed),
+          average: convertValue(data.averageSpeed),
+          current: convertValue(data.actualSpeed),
+          efficiency: convertValue(
+            (
+              (parseFloat(data.averageSpeed) / parseFloat(data.targetSpeed)) *
+              100
+            ).toString()
+          ),
+          color: "#ff9800", // Example color for machine 2
+        });
+      };
+      socket2.onclose = () => {
+        console.log("WebSocket bağlantısı kapatıldı (Machine 2).");
+      };
     }
+
+    // Cleanup both WebSocket connections on component unmount
+    return () => {
+      socket1.close();
+      if (socket2) socket2.close();
+    };
+  }, [machine1, machine2]);
+
+  const convertValue = (value: string): string => {
+    debugger;
+    return (value && value) || "".includes(".") ? value.split(".")[0] : value;
   };
-
-  const getNextMinuteInterval = () => {
-    const now = new Date();
-    return (60 - now.getSeconds()) * 1000; // How long until the next minute
-  };
-
-  useEffect(() => {
-    // Kayan yazı boyutunu ayarla
-    if (textRef.current) {
-      const height = textRef.current.getBoundingClientRect().height;
-      setTextHeight(height);
-    }
-
-    // First check and set immediate interval for the next minute
-    checkMessage();
-
-    const timeout = setTimeout(() => {
-      checkMessage(); // Check exactly on the next minute
-      const interval = setInterval(checkMessage, 60000); // Then check every minute
-      return () => clearInterval(interval);
-    }, getNextMinuteInterval());
-
-    return () => clearTimeout(timeout);
-  }, []);
 
   return (
     <>
-      {/* Üstteki başlık (from dummy data) */}
       <Header>
-        <HeaderText>{dummyData.header.left}</HeaderText>
-        <HeaderText>{dummyData.header.right}</HeaderText>
+        <HeaderText>{machine1Data.name}</HeaderText>
+        {machine2Data.name && <HeaderText>{machine2Data.name}</HeaderText>}
       </Header>
 
-      {/* İki sütunlu yapı (from dummy data with dynamic colors) */}
       <Container textHeight={textHeight}>
         <Content>
-          <LeftColumn bgColor={dummyData.leftColumn.color}>
+          {/* Sol sütun - Makine 1 */}
+          <LeftColumn bgColor={machine1Data.color}>
             <table>
               <tbody>
                 <tr>
                   <td>HEDEF</td>
-                  <td>{dummyData.leftColumn.target}</td>
+                  <td>{machine1Data.target + " m/s"}</td>
                 </tr>
                 <tr>
                   <td>ORT</td>
-                  <td>{dummyData.leftColumn.average}</td>
+                  <td>{machine1Data.average + " m/s"}</td>
                 </tr>
                 <tr>
                   <td>ANLIK</td>
-                  <td>{dummyData.leftColumn.current}</td>
+                  <td>{machine1Data.current + " m/s"}</td>
                 </tr>
                 <tr>
                   <td>VERİM</td>
-                  <td>{dummyData.leftColumn.efficiency}</td>
+                  <td>{"% " + machine1Data.efficiency}</td>
                 </tr>
               </tbody>
             </table>
           </LeftColumn>
 
-          <RightColumn bgColor={dummyData.rightColumn.color}>
-            <table>
-              <tbody>
-                <tr>
-                  <td>HEDEF</td>
-                  <td>{dummyData.rightColumn.target}</td>
-                </tr>
-                <tr>
-                  <td>ORT</td>
-                  <td>{dummyData.rightColumn.average}</td>
-                </tr>
-                <tr>
-                  <td>ANLIK</td>
-                  <td>{dummyData.rightColumn.current}</td>
-                </tr>
-                <tr>
-                  <td>VERİM</td>
-                  <td>{dummyData.rightColumn.efficiency}</td>
-                </tr>
-              </tbody>
-            </table>
-          </RightColumn>
+          {/* Sağ sütun - Makine 2 (Eğer varsa) */}
+          {machine2 && (
+            <RightColumn bgColor={machine2Data.color}>
+              <table>
+                <tbody>
+                  <tr>
+                    <td>HEDEF</td>
+                    <td>{machine2Data.target + " m/s"}</td>
+                  </tr>
+                  <tr>
+                    <td>ORT</td>
+                    <td>{machine2Data.average + " m/s"}</td>
+                  </tr>
+                  <tr>
+                    <td>ANLIK</td>
+                    <td>{machine2Data.current + " m/s"}</td>
+                  </tr>
+                  <tr>
+                    <td>VERİM</td>
+                    <td>{"% " + machine2Data.efficiency}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </RightColumn>
+          )}
         </Content>
       </Container>
-
-      {/* Different Message Types */}
-      {activeMessage && (
-        <>
-          {activeMessage.type === "scrolling" && (
-            <KayanYaziContainer textHeight={textHeight}>
-              <KayanYaziText ref={textRef}>
-                {activeMessage.message}
-              </KayanYaziText>
-            </KayanYaziContainer>
-          )}
-
-          {activeMessage.type === "fixed" && (
-            <FixedText>{activeMessage.message}</FixedText>
-          )}
-
-          {activeMessage.type === "blinking" && (
-            <FlashingText>{activeMessage.message}</FlashingText>
-          )}
-        </>
-      )}
     </>
   );
 };
