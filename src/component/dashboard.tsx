@@ -243,7 +243,7 @@ const KayanYazi: React.FC = () => {
       };
       socket1.onmessage = (event) => {
         const { data } = JSON.parse(event.data);
-        console.log("Machine 1 data:", data);
+        // console.log("Machine 1 data:", data);
         setMachine1Data({
           name: data.itemName,
           target: convertValue(data.targetSpeed),
@@ -266,7 +266,7 @@ const KayanYazi: React.FC = () => {
       };
 
       socket1.onclose = () => {
-        console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
+        // console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
       };
     }
 
@@ -278,7 +278,7 @@ const KayanYazi: React.FC = () => {
       };
       socket2.onmessage = (event) => {
         const { data } = JSON.parse(event.data);
-        console.log("Machine 2 data:", data);
+        // console.log("Machine 2 data:", data);
         setMachine2Data({
           name: data.itemName,
           target: convertValue(data.targetSpeed),
@@ -300,7 +300,7 @@ const KayanYazi: React.FC = () => {
         });
       };
       socket2.onclose = () => {
-        console.log("WebSocket bağlantısı kapatıldı (Machine 2).");
+        // console.log("WebSocket bağlantısı kapatıldı (Machine 2).");
       };
     }
 
