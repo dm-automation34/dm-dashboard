@@ -6,10 +6,8 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        {/* Define the route with URL parameters */}
-        <Route path="/:tvid/:machine1/:machine2" element={<KayanYazi />} />
-
-        {/* Optionally, add more routes here */}
+        <Route path="/:machine1/:machine2" element={<KayanYazi />} />
+        <Route path="/:machine1" element={<KayanYazi />} />
       </Routes>
     </Router>
   );

@@ -85,6 +85,27 @@ const FlashingText = styled.div`
   animation: ${flash} 1.5s infinite;
 `;
 
+const Popup = styled.div<{ isVisible: boolean }>`
+  display: ${({ isVisible }) => (isVisible ? "flex" : "none")};
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(250px + 1vw); /* Popup genişliği dinamik hale getirildi */
+  height: calc(150px + 1vw); /* Popup yüksekliği dinamik hale getirildi */
+  background-color: blue;
+  color: white;
+  border-radius: 10px;
+  font-size: calc(24px + 1vw); /* Popup fontu büyütüldü */
+  font-weight: bold;
+  padding: 10px;
+  text-align: center;
+  animation: ${flash} 1.5s infinite;
+  z-index: 20;
+`;
+
 const Container = styled.div<{ textHeight: number }>`
   display: flex;
   flex-direction: column;
@@ -139,6 +160,7 @@ const LeftColumn = styled.div<{ bgColor: string }>`
   padding: 20px;
   z-index: 0;
   border-right: 10px solid;
+  position: relative;
 
   table {
     width: 100%;
@@ -163,6 +185,7 @@ const RightColumn = styled.div<{ bgColor: string }>`
   font-weight: bold;
   padding: 20px;
   z-index: 0;
+  position: relative;
 
   table {
     width: 100%;
@@ -181,6 +204,7 @@ interface MachineDataType {
   target?: string;
   average?: string;
   current?: string;
+  message?: string;
   efficiency: string;
   color: string;
 }
@@ -194,60 +218,59 @@ const defaultMachineData: MachineDataType = {
   color: "#cccccc", // Default gri renk
 };
 
-// Main component
 const KayanYazi: React.FC = () => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [textHeight, setTextHeight] = useState(0);
   const [machine1Data, setMachine1Data] =
     useState<MachineDataType>(defaultMachineData);
-  const [machine1DataCopy, setMachine1DataCopy] =
-    useState<MachineDataType>(defaultMachineData);
   const [machine2Data, setMachine2Data] =
     useState<MachineDataType>(defaultMachineData);
 
-  // Extract parameters from the URL path instead of query params
   const { machine1, machine2 } = useParams<{
     machine1: string;
     machine2?: string;
   }>();
 
-  // WebSocket connections for both machines
   useEffect(() => {
-    // WebSocket connection for machine 1
-    const socket1 = new WebSocket("ws://192.168.0.242:8080");
-    socket1.onopen = () => {
-      socket1.send(JSON.stringify({ machineId: machine1 }));
-    };
-    socket1.onmessage = (event) => {
-      const { data } = JSON.parse(event.data);
-      console.log("Machine 1 data:", data);
-      debugger;
-      setMachine1Data({
-        name: data.itemName,
-        target: convertValue(data.targetSpeed),
-        average: convertValue(data.averageSpeed),
-        current: convertValue(data.actualSpeed),
-        efficiency: convertValue(
-          (
-            (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-            100
-          ).toString()
-        ),
-        color: renderColor(
-          (
-            (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-            100
-          ).toString()
-        ),
-      });
-    };
-
-    // popup=>75 altında ise sebeb yazacak
-    socket1.onclose = () => {
-      console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
-    };
-
+    let socket1: WebSocket | null = null;
     let socket2: WebSocket | null = null;
+
+    // Eğer machine1 varsa WebSocket bağlantısı kurulur
+    if (machine1) {
+      socket1 = new WebSocket("ws://192.168.0.242:8080");
+      socket1.onopen = () => {
+        socket1!.send(JSON.stringify({ machineId: machine1 }));
+      };
+      socket1.onmessage = (event) => {
+        const { data } = JSON.parse(event.data);
+        console.log("Machine 1 data:", data);
+        setMachine1Data({
+          name: data.itemName,
+          target: convertValue(data.targetSpeed),
+          average: convertValue(data.averageSpeed),
+          current: convertValue(data.actualSpeed),
+          message: data.message, // Message is added here
+          efficiency: convertValue(
+            (
+              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
+              100
+            ).toString()
+          ),
+          color: renderColor(
+            (
+              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
+              100
+            ).toString()
+          ),
+        });
+      };
+
+      socket1.onclose = () => {
+        console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
+      };
+    }
+
+    // Eğer machine2 varsa WebSocket bağlantısı kurulur
     if (machine2) {
       socket2 = new WebSocket("ws://192.168.0.242:8080");
       socket2.onopen = () => {
@@ -261,6 +284,7 @@ const KayanYazi: React.FC = () => {
           target: convertValue(data.targetSpeed),
           average: convertValue(data.averageSpeed),
           current: convertValue(data.actualSpeed),
+          message: data.message, // Message is added here
           efficiency: convertValue(
             (
               (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
@@ -281,7 +305,8 @@ const KayanYazi: React.FC = () => {
     }
 
     return () => {
-      socket1.close();
+      // Cleanup on unmount
+      if (socket1) socket1.close();
       if (socket2) socket2.close();
     };
   }, [machine1, machine2]);
@@ -290,74 +315,111 @@ const KayanYazi: React.FC = () => {
     if (value === "0") {
       return "#DC143C";
     } else if (parseInt(value) < 75) {
-      return "ffff00";
-    } else if (parseInt(value) > 75) {
-      return "228b22";
+      return "#FFFF00";
+    } else if (parseInt(value) >= 75) {
+      return "#228B22";
     }
     return "";
   };
 
   const convertValue = (value: string): string => {
-    debugger;
-    return (value && value) || "".includes(".") ? value.split(".")[0] : value;
+    return value.includes(".") ? value.split(".")[0] : value;
   };
 
   return (
     <>
       <Header>
-        <HeaderText>{machine1Data.name}</HeaderText>
-        {machine2Data.name && <HeaderText>{machine2Data.name}</HeaderText>}
+        {machine2 ? (
+          <>
+            <HeaderText>{machine1Data.name}</HeaderText>
+            <HeaderText>{machine2Data.name}</HeaderText>
+          </>
+        ) : (
+          <HeaderText>{machine1Data.name}</HeaderText>
+        )}
       </Header>
 
       <Container textHeight={textHeight}>
         <Content>
-          {/* Sol sütun - Makine 1 */}
-          <LeftColumn bgColor={machine1Data.color}>
-            <table>
-              <tbody>
-                <tr>
-                  <td>HEDEF</td>
-                  <td>{machine1Data.target + " m/s"}</td>
-                </tr>
-                <tr>
-                  <td>ORT</td>
-                  <td>{machine1Data.average + " m/s"}</td>
-                </tr>
-                <tr>
-                  <td>ANLIK</td>
-                  <td>{machine1Data.current + " m/s"}</td>
-                </tr>
-                <tr>
-                  <td>VERİM</td>
-                  <td>{"% " + machine1Data.efficiency}</td>
-                </tr>
-              </tbody>
-            </table>
-          </LeftColumn>
+          {machine2 ? (
+            <>
+              <LeftColumn bgColor={machine1Data.color}>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td>HEDEF</td>
+                      <td>{machine1Data.target + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>ORT</td>
+                      <td>{machine1Data.average + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>ANLIK</td>
+                      <td>{machine1Data.current + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>VERİM</td>
+                      <td>{"% " + machine1Data.efficiency}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
+                  {machine1Data.message || "Sebep"}
+                </Popup>
+              </LeftColumn>
 
-          {/* Sağ sütun - Makine 2 (Eğer varsa) */}
-          {machine2 && (
-            <RightColumn bgColor={machine2Data.color}>
+              <RightColumn bgColor={machine2Data.color}>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td>HEDEF</td>
+                      <td>{machine2Data.target + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>ORT</td>
+                      <td>{machine2Data.average + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>ANLIK</td>
+                      <td>{machine2Data.current + " m/s"}</td>
+                    </tr>
+                    <tr>
+                      <td>VERİM</td>
+                      <td>{"% " + machine2Data.efficiency}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <Popup isVisible={parseInt(machine2Data.efficiency) < 75}>
+                  {machine2Data.message || "Sebep"}
+                </Popup>
+              </RightColumn>
+            </>
+          ) : (
+            <RightColumn bgColor={machine1Data.color}>
               <table>
                 <tbody>
                   <tr>
                     <td>HEDEF</td>
-                    <td>{machine2Data.target + " m/s"}</td>
+                    <td>{machine1Data.target + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>ORT</td>
-                    <td>{machine2Data.average + " m/s"}</td>
+                    <td>{machine1Data.average + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>ANLIK</td>
-                    <td>{machine2Data.current + " m/s"}</td>
+                    <td>{machine1Data.current + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>VERİM</td>
-                    <td>{"% " + machine2Data.efficiency}</td>
+                    <td>{"% " + machine1Data.efficiency}</td>
                   </tr>
                 </tbody>
               </table>
+              <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
+                {machine1Data.message || "Sebep"}
+              </Popup>
             </RightColumn>
           )}
         </Content>
