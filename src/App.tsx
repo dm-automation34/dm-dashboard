@@ -1,187 +1,304 @@
-import React, { useEffect, useState } from "react";
-import { Card, Row, Col, Typography, Divider } from "antd";
-import GaugeChart from "react-gauge-chart";
-import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
+import React, { useEffect, useRef, useState } from "react";
+import styled, { keyframes } from "styled-components";
 
-// Dummy data
-const dummyScreens = [
-  {
-    machineName: "Machine 1",
-    slideHeader: "Machine 1",
-    workingSpeed: 70,
-    targetPercentage: 100,
-    actualSpeed: 80,
-  },
-  {
-    machineName: "Machine 2",
-    slideHeader: "Machine 2",
-    workingSpeed: 60,
-    targetPercentage: 100,
-    actualSpeed: 65,
-  },
-];
+// Kayan yazı animasyonu
+const kayan = keyframes`
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+`;
 
-// SliderItem Component
-interface SliderItemProps {
-  screen: any;
-  border: string;
-}
+// Yanıp sönen kutu animasyonu
+const flash = keyframes`    
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+`;
 
-const SliderItem: React.FC<SliderItemProps> = ({ screen, border }) => {
-  const productivity = Math.round(
-    (screen.workingSpeed / screen.targetPercentage || 0) * 100
-  );
+// Kayan yazı için stil bileşenleri
+const KayanYaziContainer = styled.div<{ textHeight: number }>`
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  padding: 10px 0;
+  border-top: 5px solid black;
+  background-color: lightblue;
+  z-index: 1;
+  border-left: 10px solid;
+  border-bottom: 10px solid;
+  border-right: 10px solid;
+`;
 
-  const color =
-    productivity >= 80
-      ? "#57CA22"
-      : productivity > 0 && productivity < 80
-      ? "#ef6c00"
-      : "#FF1943";
+const KayanYaziText = styled.p`
+  display: inline-block;
+  animation: ${kayan} 10s linear infinite;
+  font-size: calc(20px + 1vw);
+  font-weight: bold;
+  color: black;
+  margin: 0;
+  z-index: 1;
+`;
 
-  const items = [
+// Sayfanın ortasında iki sütun yapısı
+const Container = styled.div<{ textHeight: number }>`
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - ${(props) => props.textHeight + 20}px);
+  width: 100%;
+  max-width: 100vw;
+  border: 10px solid black;
+  box-sizing: border-box;
+  z-index: 0;
+`;
+
+// Üstteki ince border ile metinleri taşıyan alan
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  border-bottom: 3px solid black;
+  height: 50px;
+  border-left: 10px solid;
+  border-top: 10px solid;
+  border-right: 10px solid;
+`;
+
+const HeaderText = styled.div`
+  flex: 1;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: black;
+  border-right: 1px solid black;
+  &:last-child {
+    border-right: none;
+  }
+`;
+
+// İçerik alanı: Sol ve sağ sütunlar
+const Content = styled.div`
+  display: flex;
+  flex: 1;
+  width: 100%;
+  max-width: 100vw;
+`;
+
+// Sol taraf: Yeşil alan
+const LeftColumn = styled.div`
+  flex: 1;
+  background-color: #4caf50;
+  display: flex;
+  justify-content: center;
+  align-items: normal;
+  color: black;
+  font-size: calc(4rem + 2vw);
+  font-weight: bold;
+  padding: 20px;
+  z-index: 0;
+
+  table {
+    width: 100%;
+    td {
+      text-align: left;
+      padding: 25px;
+    }
+    tr {
+      margin-bottom: 25px;
+    }
+  }
+`;
+
+// Sağ taraf: Turuncu alan
+const RightColumn = styled.div`
+  flex: 1;
+  background-color: #ff9800;
+  display: flex;
+  justify-content: center;
+  align-items: normal;
+  color: black;
+  font-size: calc(4rem + 2vw);
+  font-weight: bold;
+  padding: 20px;
+  z-index: 0;
+
+  table {
+    width: 100%;
+    td {
+      text-align: left;
+      padding: 25px;
+    }
+    tr {
+      margin-bottom: 25px;
+    }
+  }
+`;
+
+// Ortadaki siyah ayırıcı çizgi
+const Divider = styled.div`
+  width: 5px;
+  background-color: black;
+  z-index: 0;
+`;
+
+// Yanıp sönen kutu
+// Yanıp sönen kutu
+const FlashingBox = styled.div<{ isRight: boolean }>`
+  background-color: #0044ff;
+  padding: calc(20px + 1vw); /* Responsive padding */
+  color: white;
+  border-radius: 10px;
+  animation: ${flash} 1.5s infinite;
+  text-align: center;
+  font-size: calc(2rem + 1vw); /* Responsive font-size */
+  position: absolute;
+  top: 50%;
+  ${(props) =>
+    props.isRight
+      ? "left: 75%;"
+      : "left: 25%;"} /* Sağa veya sola göre ayarlama */
+  transform: translateX(-50%) translateY(-50%); /* Yatayda ve dikeyde tam ortalama */
+  z-index: 2;
+`;
+
+const KayanYazi: React.FC = () => {
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [textHeight, setTextHeight] = useState(0);
+  const [activeMessage, setActiveMessage] = useState<string | null>(null);
+
+  const messages = [
     {
-      title: "Target",
-      description: `${Math.round(screen.targetPercentage) || 0} m/dk`,
+      start: "11:10",
+      end: "11:30",
+      message: "SAAT 11:10-11:30 ARASINDA İŞ GÜVENLİĞİ TOPLANTISI",
     },
     {
-      title: "Average",
-      description: `${Math.round(screen.workingSpeed) || 0} m/dk`,
-    },
-    {
-      title: "Current",
-      description: `${Math.round(screen.actualSpeed) || 0} m/dk`,
-    },
-    {
-      title: "Productivity",
-      description: `%${productivity}`,
-      color,
+      start: "13:15",
+      end: "13:50",
+      message: "SAAT 13:15-13:50 ARASINDA EĞİTİM",
     },
   ];
 
-  return (
-    <Card style={{ borderLeft: border }}>
-      <Typography.Title
-        level={3}
-        style={{ backgroundColor: "#FFA319", padding: "10px" }}
-      >
-        {screen.slideHeader}
-      </Typography.Title>
-      <Row gutter={16}>
-        {items.map((item, index) => (
-          <Col
-            span={24}
-            key={index}
-            style={{ padding: "10px 0", color: item.color }}
-          >
-            <Typography.Text strong>{item.title}:</Typography.Text>{" "}
-            <Typography.Text>{item.description}</Typography.Text>
-          </Col>
-        ))}
-      </Row>
-    </Card>
-  );
-};
+  const checkMessage = () => {
+    const now = new Date();
+    const currentTime = `${now.getHours()}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
 
-// StatisticCard Component
-interface StatisticCardProps {
-  actualSpeed: number;
-  workingSpeed: number;
-  productionSpeed: number;
-}
-
-const StatisticCard: React.FC<StatisticCardProps> = ({
-  actualSpeed,
-  workingSpeed,
-  productionSpeed,
-}) => {
-  return (
-    <Card>
-      <Row gutter={16}>
-        <Col span={8} style={{ textAlign: "center" }}>
-          <Typography.Title level={3}>{actualSpeed}</Typography.Title>
-          <Typography.Text>Actual Speed</Typography.Text>
-        </Col>
-        <Divider type="vertical" />
-        <Col span={8} style={{ textAlign: "center" }}>
-          <Typography.Title level={3}>{workingSpeed}</Typography.Title>
-          <Typography.Text>Working Speed</Typography.Text>
-        </Col>
-        <Divider type="vertical" />
-        <Col span={8} style={{ textAlign: "center" }}>
-          <Typography.Title level={3}>{productionSpeed}</Typography.Title>
-          <Typography.Text>Production Speed</Typography.Text>
-        </Col>
-      </Row>
-    </Card>
-  );
-};
-
-// StatisticChart Component
-interface StatisticChartProps {
-  screen: any;
-  percent: number;
-  subTitle: string;
-}
-
-const StatisticChart: React.FC<StatisticChartProps> = ({
-  screen,
-  percent,
-  subTitle,
-}) => {
-  const [currentPercent, setCurrentPercent] = useState(
-    Math.round(percent) || 0
-  );
-
-  return (
-    <Card>
-      <Typography.Title level={3}>{screen.slideHeader}</Typography.Title>
-      <GaugeChart
-        arcPadding={0.1}
-        cornerRadius={3}
-        percent={currentPercent / 100}
-        colors={["#57CA22", "#ef6c00"]}
-      />
-      <Divider />
-      <Typography.Text>{subTitle}</Typography.Text>
-    </Card>
-  );
-};
-
-// Main StatisticList Component
-const StatisticList: React.FC = () => {
-  const [screens, setScreens] = useState<any[]>([]);
+    const active = messages.find(
+      (msg) => currentTime >= msg.start && currentTime <= msg.end
+    );
+    if (active) {
+      setActiveMessage(active.message);
+    } else {
+      setActiveMessage(null);
+    }
+  };
 
   useEffect(() => {
-    // Using dummy data for demonstration. Replace with API call to get screens.
-    setScreens(dummyScreens);
+    // Kayan yazı boyutunu ayarla
+    if (textRef.current) {
+      const height = textRef.current.getBoundingClientRect().height;
+      setTextHeight(height);
+    }
 
-    const intervalId = setInterval(() => {
-      // Simulate an API call to fetch updated screen data every 60 seconds.
-      setScreens(dummyScreens); // You can fetch fresh data here
+    // Zaman kontrolü için her dakika bir kez çalıştır
+    const interval = setInterval(() => {
+      checkMessage();
     }, 60000);
 
-    return () => clearInterval(intervalId);
+    // İlk kontrol
+    checkMessage();
+
+    return () => clearInterval(interval);
   }, []);
 
+  // Eğer aktif bir mesaj yoksa kayan yazıyı gizle
+  if (!activeMessage) {
+    return null;
+  }
+
   return (
-    <div>
-      {screens && screens.length > 0 ? (
-        <Swiper spaceBetween={0} slidesPerView={1}>
-          <SwiperSlide>
-            <Row gutter={16}>
-              {screens.map((screen) => (
-                <Col span={8} key={screen.machineName}>
-                  <SliderItem screen={screen} border="6px solid #000" />
-                </Col>
-              ))}
-            </Row>
-          </SwiperSlide>
-        </Swiper>
-      ) : null}
-    </div>
+    <>
+      {/* Üstteki başlık */}
+      <Header>
+        <HeaderText>2,88 mm ALUMİNYUM TEL</HeaderText>
+        <HeaderText>1,74 mm BAKIR İLETKEN</HeaderText>
+      </Header>
+
+      {/* İki sütunlu yapı */}
+      <Container textHeight={textHeight}>
+        <Content>
+          <LeftColumn>
+            <table>
+              <tbody>
+                <tr>
+                  <td>HEDEF</td>
+                  <td>6 m/sn</td>
+                </tr>
+                <tr>
+                  <td>ORT</td>
+                  <td>6 m/sn</td>
+                </tr>
+                <tr>
+                  <td>ANLIK</td>
+                  <td>5 m/sn</td>
+                </tr>
+                <tr>
+                  <td>VERİM</td>
+                  <td>%92</td>
+                </tr>
+              </tbody>
+            </table>
+            <FlashingBox isRight={false}>
+              K-01 HIZ DÜŞÜK <br /> TEL KOPMASI - 7 dk
+            </FlashingBox>
+          </LeftColumn>
+
+          <RightColumn>
+            <table>
+              <tbody>
+                <tr>
+                  <td>HEDEF</td>
+                  <td>12 m/sn</td>
+                </tr>
+                <tr>
+                  <td>ORT</td>
+                  <td>3 m/sn</td>
+                </tr>
+                <tr>
+                  <td>ANLIK</td>
+                  <td>3 m/sn</td>
+                </tr>
+                <tr>
+                  <td>VERİM</td>
+                  <td>%68</td>
+                </tr>
+              </tbody>
+            </table>
+            <FlashingBox isRight={true}>
+              K-02 HIZ DÜŞÜK <br /> TEL KOPMASI - 10 dk
+            </FlashingBox>
+          </RightColumn>
+        </Content>
+      </Container>
+
+      {/* Kayan yazı */}
+      <KayanYaziContainer textHeight={textHeight}>
+        <KayanYaziText ref={textRef}>{activeMessage}</KayanYaziText>
+      </KayanYaziContainer>
+    </>
   );
 };
 
-export default StatisticList;
+export default KayanYazi;
