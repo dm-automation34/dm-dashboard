@@ -138,6 +138,7 @@ const LeftColumn = styled.div<{ bgColor: string }>`
   font-weight: bold;
   padding: 20px;
   z-index: 0;
+  border-right: 10px solid;
 
   table {
     width: 100%;
@@ -228,23 +229,24 @@ const KayanYazi: React.FC = () => {
         current: convertValue(data.actualSpeed),
         efficiency: convertValue(
           (
-            (parseFloat(data.averageSpeed) / parseFloat(data.targetSpeed)) *
+            (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
             100
           ).toString()
         ),
-        color: "#4caf50", // Example color for machine 1
+        color: renderColor(
+          (
+            (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
+            100
+          ).toString()
+        ),
       });
     };
-    // 0 -kırmızı
-    // 0-75 - sarı
-    // 75 ten büyükse yeşi
 
     // popup=>75 altında ise sebeb yazacak
     socket1.onclose = () => {
       console.log("WebSocket bağlantısı kapatıldı (Machine 1).");
     };
 
-    // WebSocket connection for machine 2 (if defined)
     let socket2: WebSocket | null = null;
     if (machine2) {
       socket2 = new WebSocket("ws://192.168.0.242:8080");
@@ -261,11 +263,16 @@ const KayanYazi: React.FC = () => {
           current: convertValue(data.actualSpeed),
           efficiency: convertValue(
             (
-              (parseFloat(data.averageSpeed) / parseFloat(data.targetSpeed)) *
+              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
               100
             ).toString()
           ),
-          color: "#ff9800", // Example color for machine 2
+          color: renderColor(
+            (
+              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
+              100
+            ).toString()
+          ),
         });
       };
       socket2.onclose = () => {
@@ -273,12 +280,22 @@ const KayanYazi: React.FC = () => {
       };
     }
 
-    // Cleanup both WebSocket connections on component unmount
     return () => {
       socket1.close();
       if (socket2) socket2.close();
     };
   }, [machine1, machine2]);
+
+  const renderColor = (value: string): string => {
+    if (value === "0") {
+      return "#DC143C";
+    } else if (parseInt(value) < 75) {
+      return "ffff00";
+    } else if (parseInt(value) > 75) {
+      return "228b22";
+    }
+    return "";
+  };
 
   const convertValue = (value: string): string => {
     debugger;
