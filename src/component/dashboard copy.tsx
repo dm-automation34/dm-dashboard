@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useParams } from "react-router-dom";
 
+// Animasyonlar
 const kayan = keyframes`
   0% {
     transform: translateX(100vw);
@@ -20,6 +21,7 @@ const flash = keyframes`
   }
 `;
 
+// Stil Bileşenleri
 const KayanYaziContainer = styled.div<{ textHeight: number }>`
   white-space: nowrap;
   overflow: hidden;
@@ -91,12 +93,12 @@ const Popup = styled.div<{ isVisible: boolean }>`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: calc(700px + 1vw);
-  height: calc(400px + 1vw);
+  width: calc(250px + 1vw);
+  height: calc(150px + 1vw);
   background-color: blue;
   color: white;
   border-radius: 10px;
-  font-size: calc(58px + 1vw);
+  font-size: calc(24px + 1vw);
   font-weight: bold;
   padding: 10px;
   text-align: center;
@@ -199,10 +201,9 @@ const RightColumn = styled.div<{ bgColor: string }>`
 
 interface MachineDataType {
   name: string;
-  targetSpeed?: string;
-  averageSpeed?: string;
-  actualSpeed?: string;
-  idle?: string;
+  target?: string;
+  average?: string;
+  current?: string;
   message?: string;
   efficiency: string;
   color: string;
@@ -210,12 +211,10 @@ interface MachineDataType {
 
 const defaultMachineData: MachineDataType = {
   name: "",
-  targetSpeed: undefined,
-  averageSpeed: undefined,
-  actualSpeed: undefined,
+  target: undefined,
+  average: undefined,
+  current: undefined,
   efficiency: "-",
-  idle: "",
-  message: "",
   color: "#cccccc",
 };
 
@@ -248,7 +247,6 @@ const KayanYazi: React.FC = () => {
     let messageSocket: WebSocket | null = null;
 
     if (machine1) {
-      debugger;
       socket1 = new WebSocket(`ws://192.168.0.242:8080?token=${token}`);
       socket1.onopen = () => {
         socket1!.send(JSON.stringify({ machineId: machine1 }));
@@ -257,11 +255,10 @@ const KayanYazi: React.FC = () => {
         const { data } = JSON.parse(event.data);
         setMachine1Data({
           name: data.itemName,
-          targetSpeed: convertValue(data.targetSpeed),
-          averageSpeed: convertValue(data.averageSpeed),
-          actualSpeed: convertValue(data.actualSpeed),
+          target: convertValue(data.targetSpeed),
+          average: convertValue(data.averageSpeed),
+          current: convertValue(data.actualSpeed),
           message: data.message,
-          idle: data.idle,
           efficiency: convertValue(
             (
               (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
@@ -285,13 +282,13 @@ const KayanYazi: React.FC = () => {
         socket2!.send(JSON.stringify({ machineId: machine2 }));
       };
       socket2.onmessage = (event) => {
+        debugger;
         const { data } = JSON.parse(event.data);
         setMachine2Data({
           name: data.itemName,
-          targetSpeed: convertValue(data.targetSpeed),
-          averageSpeed: convertValue(data.averageSpeed),
-          actualSpeed: convertValue(data.actualSpeed),
-          idle: data.idle,
+          target: convertValue(data.targetSpeed),
+          average: convertValue(data.averageSpeed),
+          current: convertValue(data.actualSpeed),
           message: data.message,
           efficiency: convertValue(
             (
@@ -311,24 +308,22 @@ const KayanYazi: React.FC = () => {
     }
 
     // Mesajlar için WebSocket
-    messageSocket = new WebSocket("ws://localhost:3002/messageUpdate");
-    messageSocket.onopen = () => {
-      socket2!.send(JSON.stringify({ machineId: machine2 }));
-      console.log("Mesaj WebSocket bağlantısı kuruldu");
-    };
-    messageSocket.onmessage = (event) => {
-      debugger;
-      const newMessage = JSON.parse(event.data);
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-    };
-    messageSocket.onclose = () => {
-      console.log("Mesaj WebSocket bağlantısı kapatıldı");
-    };
+    // messageSocket = new WebSocket(`ws://http://localhost:3002//messages`);
+    // messageSocket.onopen = () => {
+    //   console.log("Mesaj WebSocket bağlantısı kuruldu");
+    // };
+    // messageSocket.onmessage = (event) => {
+    //   const newMessage = JSON.parse(event.data);
+    //   setMessages((prevMessages) => [...prevMessages, newMessage]);
+    // };
+    // messageSocket.onclose = () => {
+    //   console.log("Mesaj WebSocket bağlantısı kapatıldı");
+    // };
 
     return () => {
       if (socket1) socket1.close();
       if (socket2) socket2.close();
-      if (messageSocket) messageSocket.close();
+      // if (messageSocket) messageSocket.close();
     };
   }, [machine1, machine2]);
 
@@ -382,25 +377,7 @@ const KayanYazi: React.FC = () => {
   };
 
   const convertValue = (value: string): string => {
-    return value?.includes(".") ? value?.split(".")[0] : value;
-  };
-
-  const getPopupMessage = (type: boolean) => {
-    if (parseInt(machine1Data?.actualSpeed!) === 0) {
-      return type === true
-        ? renderPopupMessage(true, machine1Data.idle!)
-        : renderPopupMessage(true, machine2Data.idle!);
-    } else if (parseInt(machine1Data?.efficiency!) < 75) {
-      return type === true
-        ? renderPopupMessage(true, machine1Data.message!)
-        : renderPopupMessage(true, machine2Data.message!);
-    } else {
-      return renderPopupMessage(false, "");
-    }
-  };
-
-  const renderPopupMessage = (isVisible: boolean, message: string) => {
-    return <Popup isVisible={isVisible}>{message}</Popup>;
+    return value.includes(".") ? value.split(".")[0] : value;
   };
 
   return (
@@ -425,15 +402,15 @@ const KayanYazi: React.FC = () => {
                   <tbody>
                     <tr>
                       <td>HEDEF</td>
-                      <td>{machine1Data.targetSpeed + " m/s"}</td>
+                      <td>{machine1Data.target + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>ORT</td>
-                      <td>{machine1Data.averageSpeed + " m/s"}</td>
+                      <td>{machine1Data.average + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>ANLIK</td>
-                      <td>{machine1Data.actualSpeed + " m/s"}</td>
+                      <td>{machine1Data.current + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>VERİM</td>
@@ -441,7 +418,9 @@ const KayanYazi: React.FC = () => {
                     </tr>
                   </tbody>
                 </table>
-                {getPopupMessage(true)}
+                <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
+                  {machine1Data.message || "Sebep"}
+                </Popup>
               </LeftColumn>
 
               <RightColumn bgColor={machine2Data.color}>
@@ -449,15 +428,15 @@ const KayanYazi: React.FC = () => {
                   <tbody>
                     <tr>
                       <td>HEDEF</td>
-                      <td>{machine2Data.targetSpeed + " m/s"}</td>
+                      <td>{machine2Data.target + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>ORT</td>
-                      <td>{machine2Data.averageSpeed + " m/s"}</td>
+                      <td>{machine2Data.average + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>ANLIK</td>
-                      <td>{machine2Data.actualSpeed + " m/s"}</td>
+                      <td>{machine2Data.current + " m/s"}</td>
                     </tr>
                     <tr>
                       <td>VERİM</td>
@@ -465,7 +444,9 @@ const KayanYazi: React.FC = () => {
                     </tr>
                   </tbody>
                 </table>
-                {getPopupMessage(false)}
+                <Popup isVisible={parseInt(machine2Data.efficiency) < 75}>
+                  {machine2Data.message || "Sebep"}
+                </Popup>
               </RightColumn>
             </>
           ) : (
@@ -474,15 +455,15 @@ const KayanYazi: React.FC = () => {
                 <tbody>
                   <tr>
                     <td>HEDEF</td>
-                    <td>{machine1Data.targetSpeed + " m/s"}</td>
+                    <td>{machine1Data.target + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>ORT</td>
-                    <td>{machine1Data.averageSpeed + " m/s"}</td>
+                    <td>{machine1Data.average + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>ANLIK</td>
-                    <td>{machine1Data.actualSpeed + " m/s"}</td>
+                    <td>{machine1Data.current + " m/s"}</td>
                   </tr>
                   <tr>
                     <td>VERİM</td>
@@ -490,7 +471,9 @@ const KayanYazi: React.FC = () => {
                   </tr>
                 </tbody>
               </table>
-              {getPopupMessage(true)}
+              <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
+                {machine1Data.message || "Sebep"}
+              </Popup>
             </RightColumn>
           )}
         </Content>
