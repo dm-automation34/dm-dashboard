@@ -28,7 +28,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "deploy-alves": "cross-env ENV=alves dotenv -e .env.alves -- npm run deploy",
+    "deploy-alves": "npm run deploy",
     "build": "npm run clean-build && npm run create-build && npm run zip-dist",
     "clean-build": "rm -rf build",
     "create-build": "react-scripts build",

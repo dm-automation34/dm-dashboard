@@ -1,1 +1,0 @@
-export { StatisticList } from './StatisticList'

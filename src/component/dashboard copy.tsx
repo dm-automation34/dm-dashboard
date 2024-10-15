@@ -1,8 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useParams } from "react-router-dom";
+import { io } from "socket.io-client";
+import { Progress } from "antd";
 
-// Animasyonlar
+// const messageSocket = io("http://localhost:3003");
+
+// const messageSocket = io("wss://scada.alveskablo.com/socket.io", {
+//   transports: ["websocket"], // Enforce WebSocket transport
+// });
+
+const ProgressBarContainer = styled.div`
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  padding: 1vh 0;
+  background-color: lightblue;
+  z-index: 1;
+`;
+
 const kayan = keyframes`
   0% {
     transform: translateX(100vw);
@@ -21,7 +37,6 @@ const flash = keyframes`
   }
 `;
 
-// Stil Bileşenleri
 const KayanYaziContainer = styled.div<{ textHeight: number }>`
   white-space: nowrap;
   overflow: hidden;
@@ -29,19 +44,19 @@ const KayanYaziContainer = styled.div<{ textHeight: number }>`
   width: 100%;
   position: fixed;
   bottom: 0;
-  padding: 10px 0;
-  border-top: 5px solid black;
+  padding: 1vh 0;
+  border-top: 0.5vh solid black;
   background-color: lightblue;
   z-index: 1;
-  border-left: 10px solid;
-  border-bottom: 10px solid;
-  border-right: 10px solid;
+  border-left: 0.5vh solid;
+  border-bottom: 0.5vh solid;
+  border-right: 0.5vh solid;
 `;
 
-const KayanYaziText = styled.p`
+const KayanYaziText = styled.p<{ duration: number }>`
   display: inline-block;
-  animation: ${kayan} 10s linear infinite;
-  font-size: calc(20px + 1vw);
+  animation: ${kayan} ${({ duration }) => duration}s linear infinite;
+  font-size: calc(1.2rem + 1vw);
   font-weight: bold;
   color: black;
   margin: 0;
@@ -49,7 +64,7 @@ const KayanYaziText = styled.p`
 `;
 
 const FixedText = styled.div`
-  font-size: calc(20px + 1vw);
+  font-size: calc(1.2rem + 1vw);
   font-weight: bold;
   color: black;
   display: flex;
@@ -59,15 +74,15 @@ const FixedText = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 50px;
+  height: 5vh;
   background-color: lightblue;
-  border-top: 5px solid black;
-  padding: 10px 0;
+  border-top: 0.5vh solid black;
+  padding: 1vh 0;
   z-index: 10;
 `;
 
 const FlashingText = styled.div`
-  font-size: calc(20px + 1vw);
+  font-size: calc(1.2rem + 1vw);
   font-weight: bold;
   color: black;
   display: flex;
@@ -77,10 +92,10 @@ const FlashingText = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 50px;
+  height: 5vh;
   background-color: lightblue;
-  border-top: 5px solid black;
-  padding: 10px 0;
+  border-top: 0.5vh solid black;
+  padding: 1vh 0;
   z-index: 10;
   animation: ${flash} 1.5s infinite;
 `;
@@ -93,14 +108,14 @@ const Popup = styled.div<{ isVisible: boolean }>`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: calc(250px + 1vw);
-  height: calc(150px + 1vw);
+  width: 50vw;
+  height: 30vh;
   background-color: blue;
   color: white;
-  border-radius: 10px;
-  font-size: calc(24px + 1vw);
+  border-radius: 1vh;
+  font-size: calc(5rem + 1vw);
   font-weight: bold;
-  padding: 10px;
+  padding: 1vh;
   text-align: center;
   animation: ${flash} 1.5s infinite;
   z-index: 20;
@@ -109,12 +124,32 @@ const Popup = styled.div<{ isVisible: boolean }>`
 const Container = styled.div<{ textHeight: number }>`
   display: flex;
   flex-direction: column;
-  height: calc(90vh - ${(props) => props.textHeight + 20}px);
+  height: calc(80vh - ${(props) => props.textHeight + 2}vh);
   width: 100%;
   max-width: 100vw;
-  border: 10px solid black;
+  border: 0.5vh solid black;
   box-sizing: border-box;
   z-index: 0;
+`;
+
+const LoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: calc(3rem + 1vw);
+  font-weight: bold;
+  z-index: 100;
+  text-align: center;
+  padding: 2vh;
+  border: 0.5vh solid white;
+  border-radius: 1vh;
 `;
 
 const Header = styled.div`
@@ -122,20 +157,18 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   background-color: white;
-  border-bottom: 3px solid black;
-  height: 50px;
-  border-left: 10px solid;
-  border-top: 10px solid;
-  border-right: 10px solid;
+  border-left: 0.5vh solid;
+  border-top: 0.5vh solid;
+  border-right: 0.5vh solid;
 `;
 
 const HeaderText = styled.div`
   flex: 1;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: calc(4rem + 1vw);
   font-weight: bold;
   color: black;
-  border-right: 1px solid black;
+  border-right: 0.5vh solid black;
   &:last-child {
     border-right: none;
   }
@@ -148,93 +181,80 @@ const Content = styled.div`
   max-width: 100vw;
 `;
 
-const LeftColumn = styled.div<{ bgColor: string }>`
+const Column = styled.div<{ bgColor: string }>`
   flex: 1;
   background-color: ${(props) => props.bgColor};
   display: flex;
   justify-content: center;
-  align-items: normal;
+  align-items: flex-start;
   color: black;
-  font-size: calc(4rem + 2vw);
+  font-size: calc(3rem + 1vw);
   font-weight: bold;
-  padding: 20px;
+  padding: 2vh;
   z-index: 0;
-  border-right: 10px solid;
+  border-right: 0.5vh solid;
   position: relative;
 
   table {
     width: 100%;
     td {
-      text-align: left;
-      padding: 25px;
+      text-align: right;
+      padding: 1vh;
+      font-size: calc(6rem + 1vw);
     }
     tr {
-      margin-bottom: 25px;
-    }
-  }
-`;
-
-const RightColumn = styled.div<{ bgColor: string }>`
-  flex: 1;
-  background-color: ${(props) => props.bgColor};
-  display: flex;
-  justify-content: center;
-  align-items: normal;
-  color: black;
-  font-size: calc(4rem + 2vw);
-  font-weight: bold;
-  padding: 20px;
-  z-index: 0;
-  position: relative;
-
-  table {
-    width: 100%;
-    td {
-      text-align: left;
-      padding: 25px;
-    }
-    tr {
-      margin-bottom: 25px;
+      margin-bottom: 4vh;
     }
   }
 `;
 
 interface MachineDataType {
   name: string;
-  target?: string;
-  average?: string;
-  current?: string;
+  targetSpeed?: string;
+  averageSpeed?: string;
+  actualSpeed?: string;
+  idle?: string;
   message?: string;
   efficiency: string;
   color: string;
+  orderValue: string;
+  actualValue: string;
 }
 
 const defaultMachineData: MachineDataType = {
   name: "",
-  target: undefined,
-  average: undefined,
-  current: undefined,
+  targetSpeed: undefined,
+  averageSpeed: undefined,
+  actualSpeed: undefined,
   efficiency: "-",
+  idle: "",
+  message: "",
   color: "#cccccc",
+  orderValue: "",
+  actualValue: "",
 };
-
-interface MessageType {
-  type: "scrolling" | "fixed" | "blinking";
-  message: string;
-  start: string;
-  end: string;
-}
 
 const KayanYazi: React.FC = () => {
   const token = "alves123";
   const textRef = useRef<HTMLParagraphElement>(null);
   const [textHeight, setTextHeight] = useState(0);
-  const [machine1Data, setMachine1Data] =
-    useState<MachineDataType>(defaultMachineData);
-  const [machine2Data, setMachine2Data] =
-    useState<MachineDataType>(defaultMachineData);
-  const [messages, setMessages] = useState<MessageType[]>([]);
-  const [activeMessage, setActiveMessage] = useState<MessageType | null>(null);
+  const [machine1Data, setMachine1Data] = useState<MachineDataType | null>(
+    null
+  );
+  const [machine2Data, setMachine2Data] = useState<MachineDataType | null>(
+    null
+  );
+  const eventSource = useRef<EventSource>();
+  const [messages, setMessages] = useState<any[]>([]);
+  const [activeMessage, setActiveMessage] = useState<any | null>(null);
+  const [socketError, setSocketError] = useState<string | null>(null);
+  const [scrollingSpeed, setScrollingSpeed] = useState<
+    "slow" | "normal" | "fast"
+  >("normal");
+  const [progressPercent, setProgressPercent] = useState<number>(35);
+
+  // const baseURL = process.env.TV_SOCKET_URL;
+  const baseURL = "https://scada.alveskablo.com/api";
 
   const { machine1, machine2 } = useParams<{
     machine1: string;
@@ -242,23 +262,31 @@ const KayanYazi: React.FC = () => {
   }>();
 
   useEffect(() => {
-    let socket1: WebSocket | null = null;
-    let socket2: WebSocket | null = null;
-    let messageSocket: WebSocket | null = null;
+    let socket: WebSocket | null = null;
 
-    if (machine1) {
-      socket1 = new WebSocket(`ws://192.168.0.242:8080?token=${token}`);
-      socket1.onopen = () => {
-        socket1!.send(JSON.stringify({ machineId: machine1 }));
+    const connectToSocket = () => {
+      socket = new WebSocket(`ws://192.168.0.242:8081?token=${token}`);
+
+      socket.onopen = () => {
+        console.log("WebSocket bağlantısı kuruldu");
+        setSocketError(null);
+        const request = machine2
+          ? { machine1Id: machine1, machine2Id: machine2 }
+          : { machine1Id: machine1 };
+        socket!.send(JSON.stringify(request));
       };
-      socket1.onmessage = (event) => {
-        const { data } = JSON.parse(event.data);
-        setMachine1Data({
+
+      socket.onmessage = (event) => {
+        const { machineId, data } = JSON.parse(event.data);
+        const machineData = {
           name: data.itemName,
-          target: convertValue(data.targetSpeed),
-          average: convertValue(data.averageSpeed),
-          current: convertValue(data.actualSpeed),
+          targetSpeed: convertValue(data.targetSpeed),
+          averageSpeed: convertValue(data.averageSpeed),
+          actualSpeed: convertValue(data.actualSpeed),
+          orderValue: data.orderValue,
+          actualValue: data.actualValue,
           message: data.message,
+          idle: data.idle,
           efficiency: convertValue(
             (
               (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
@@ -271,72 +299,76 @@ const KayanYazi: React.FC = () => {
               100
             ).toString()
           ),
-        });
-      };
-      socket1.onclose = () => {};
-    }
+        };
 
-    if (machine2) {
-      socket2 = new WebSocket(`ws://192.168.0.242:8080?token=${token}`);
-      socket2.onopen = () => {
-        socket2!.send(JSON.stringify({ machineId: machine2 }));
+        if (machineId === machine1) {
+          setMachine1Data(machineData);
+        } else if (machine2 && machineId === machine2) {
+          setMachine2Data(machineData);
+        }
       };
-      socket2.onmessage = (event) => {
-        debugger;
-        const { data } = JSON.parse(event.data);
-        setMachine2Data({
-          name: data.itemName,
-          target: convertValue(data.targetSpeed),
-          average: convertValue(data.averageSpeed),
-          current: convertValue(data.actualSpeed),
-          message: data.message,
-          efficiency: convertValue(
-            (
-              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-              100
-            ).toString()
-          ),
-          color: renderColor(
-            (
-              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-              100
-            ).toString()
-          ),
-        });
-      };
-      socket2.onclose = () => {};
-    }
 
-    // Mesajlar için WebSocket
-    // messageSocket = new WebSocket(`ws://http://localhost:3002//messages`);
-    // messageSocket.onopen = () => {
-    //   console.log("Mesaj WebSocket bağlantısı kuruldu");
-    // };
-    // messageSocket.onmessage = (event) => {
-    //   const newMessage = JSON.parse(event.data);
-    //   setMessages((prevMessages) => [...prevMessages, newMessage]);
-    // };
-    // messageSocket.onclose = () => {
-    //   console.log("Mesaj WebSocket bağlantısı kapatıldı");
-    // };
+      socket.onclose = () => {
+        console.log(
+          "WebSocket bağlantısı kapatıldı, yeniden bağlanmayı deniyor..."
+        );
+        setSocketError("Sinyal kesildi. Tekrar bağlanılıyor...");
+        setTimeout(connectToSocket, 5000);
+      };
+
+      socket.onerror = (error) => {
+        console.log("WebSocket hatası:", error);
+        setSocketError("WebSocket bağlantısı başarısız oldu.");
+      };
+    };
+
+    connectToSocket();
 
     return () => {
-      if (socket1) socket1.close();
-      if (socket2) socket2.close();
-      // if (messageSocket) messageSocket.close();
+      if (socket) socket.close();
     };
   }, [machine1, machine2]);
 
+  // useEffect(() => {
+  //   messageSocket.on("connect", () => {
+  //     console.log("Socket bağlantısı kuruldu.");
+  //     setSocketError(null);
+  //   });
+
+  //   messageSocket.on("message", (message: any[]) => {
+  //     console.log("Yeni mesaj alındı:", message);
+  //     setMessages(message);
+  //   });
+
+  //   return () => {
+  //     messageSocket.off("message");
+  //   };
+  // }, []);
+
+  useEffect(() => {
+    eventSource!.current = new EventSource(
+      `${baseURL}/dashboard-news/events/d261e37c-35c5-4b2b-898d-ac92239b355a`
+    );
+    eventSource.current.onmessage = ({ data }) => {
+      const payload = JSON.parse(data);
+      debugger;
+      setMessages(payload);
+    };
+
+    return () => {
+      eventSource.current!.close();
+    };
+  }, []);
+
   const checkMessage = () => {
     const now = new Date();
-    const currentTime = `${now.getHours()}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
+    const active = messages?.find((msg: any) => {
+      setScrollingSpeed(msg.scrollingSpeed);
+      const startDate = new Date(msg.startDate);
+      const endDate = new Date(msg.endDate);
+      return now >= startDate && now < endDate;
+    });
 
-    const active = messages.find(
-      (msg) => currentTime >= msg.start && currentTime < msg.end
-    );
     if (active) {
       setActiveMessage(active);
     } else {
@@ -377,19 +409,109 @@ const KayanYazi: React.FC = () => {
   };
 
   const convertValue = (value: string): string => {
-    return value.includes(".") ? value.split(".")[0] : value;
+    return value?.includes(".") ? value?.split(".")[0] : value;
+  };
+
+  const getPopupMessage = (machineData: MachineDataType | null) => {
+    if (!machineData || machineData.actualSpeed === undefined) {
+      return renderPopupMessage(true, "Sinyal Yok");
+    }
+
+    const actualSpeed = parseFloat(machineData.actualSpeed || "0");
+    const efficiency = parseFloat(machineData.efficiency || "0");
+
+    if (actualSpeed === 0) {
+      return renderPopupMessage(true, machineData.idle || "Sinyal Yok");
+    } else if (efficiency < 75 && machineData.message) {
+      return renderPopupMessage(true, machineData.message || "Düşük Verim");
+    } else {
+      return renderPopupMessage(false, "");
+    }
+  };
+
+  const renderPopupMessage = (isVisible: boolean, message: string) => {
+    return <Popup isVisible={isVisible}>{message}</Popup>;
+  };
+
+  const getScrollSpeedDuration = () => {
+    switch (scrollingSpeed) {
+      case "slow":
+        return 20;
+      case "fast":
+        return 5;
+      case "normal":
+      default:
+        return 10;
+    }
+  };
+
+  const renderProgressBar = () => {
+    if (machine2) {
+      return (
+        <>
+          <ProgressBarContainer>
+            <div style={{ width: "50%", float: "left" }}>
+              <Progress
+                percent={calculateMachine1ProcessBar()}
+                showInfo={true}
+                strokeWidth={40}
+                status="active"
+              />
+            </div>
+            <div style={{ width: "50%", float: "right" }}>
+              <Progress
+                percent={calculateMachine2ProcessBar()}
+                showInfo={true}
+                strokeWidth={40}
+                status="active"
+              />
+            </div>
+          </ProgressBarContainer>
+        </>
+      );
+    } else {
+      // Sadece bir makine varsa tüm ekran boyunca progress bar
+      return (
+        <ProgressBarContainer>
+          <Progress
+            percent={calculateMachine1ProcessBar()}
+            showInfo={true}
+            strokeWidth={40}
+            status="active"
+          />
+        </ProgressBarContainer>
+      );
+    }
+  };
+
+  const calculateMachine1ProcessBar = () => {
+    return Math.round(
+      ((Math.round(parseFloat(machine1Data?.actualValue!)) || 0) /
+        (Math.round(parseFloat(machine1Data?.orderValue!)) || 0)) *
+        100
+    );
+  };
+
+  const calculateMachine2ProcessBar = () => {
+    return Math.round(
+      ((Math.round(parseFloat(machine2Data?.actualValue!)) || 0) /
+        (Math.round(parseFloat(machine2Data?.orderValue!)) || 0)) *
+        100
+    );
   };
 
   return (
     <>
+      {socketError && <LoadingOverlay>{socketError}</LoadingOverlay>}
+
       <Header>
         {machine2 ? (
           <>
-            <HeaderText>{machine1Data.name}</HeaderText>
-            <HeaderText>{machine2Data.name}</HeaderText>
+            <HeaderText>{machine1Data?.name || "Yükleniyor..."}</HeaderText>
+            <HeaderText>{machine2Data?.name || "Yükleniyor..."}</HeaderText>
           </>
         ) : (
-          <HeaderText>{machine1Data.name}</HeaderText>
+          <HeaderText>{machine1Data?.name || "Yükleniyor..."}</HeaderText>
         )}
       </Header>
 
@@ -397,93 +519,224 @@ const KayanYazi: React.FC = () => {
         <Content>
           {machine2 ? (
             <>
-              <LeftColumn bgColor={machine1Data.color}>
+              <Column bgColor={machine1Data?.color || "#000"}>
                 <table>
                   <tbody>
                     <tr>
                       <td>HEDEF</td>
-                      <td>{machine1Data.target + " m/s"}</td>
+                      <td>
+                        {machine1Data?.targetSpeed
+                          ? machine1Data.targetSpeed + " m/s"
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
                       <td>ORT</td>
-                      <td>{machine1Data.average + " m/s"}</td>
+                      <td>
+                        {machine1Data?.averageSpeed
+                          ? machine1Data.averageSpeed + " m/s"
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
                       <td>ANLIK</td>
-                      <td>{machine1Data.current + " m/s"}</td>
+                      <td>
+                        {machine1Data?.actualSpeed
+                          ? machine1Data.actualSpeed + " m/s"
+                          : "N/A"}
+                      </td>
+                    </tr>
+                    {/* <tr>
+                      <td>VERİM</td>
+                      <td>
+                        {machine1Data?.efficiency
+                          ? "% " + machine1Data.efficiency
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
-                      <td>VERİM</td>
-                      <td>{"% " + machine1Data.efficiency}</td>
+                      <td>OV</td>
+                      <td>
+                        {Math.round(parseFloat(machine1Data?.orderValue!))
+                          ? Math.round(parseFloat(machine1Data?.orderValue!))
+                          : "N/A"}
+                      </td>
                     </tr>
+                    <tr>
+                      <td>AV</td>
+                      <td>
+                        {Math.round(parseFloat(machine1Data?.actualValue!))
+                          ? Math.round(parseFloat(machine1Data?.actualValue!))
+                          : "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>calculate</td>
+                      <td>
+                        {Math.round(
+                          ((Math.round(
+                            parseFloat(machine1Data?.actualValue!)
+                          ) || 0) /
+                            (Math.round(
+                              parseFloat(machine1Data?.orderValue!)
+                            ) || 0)) *
+                            100
+                        )}
+                      </td>
+                    </tr> */}
                   </tbody>
                 </table>
-                <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
-                  {machine1Data.message || "Sebep"}
-                </Popup>
-              </LeftColumn>
+                {getPopupMessage(machine1Data)}
+              </Column>
 
-              <RightColumn bgColor={machine2Data.color}>
+              <Column bgColor={machine2Data?.color || "#000"}>
                 <table>
                   <tbody>
                     <tr>
                       <td>HEDEF</td>
-                      <td>{machine2Data.target + " m/s"}</td>
+                      <td>
+                        {machine2Data?.targetSpeed
+                          ? machine2Data.targetSpeed + " m/s"
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
                       <td>ORT</td>
-                      <td>{machine2Data.average + " m/s"}</td>
+                      <td>
+                        {machine2Data?.averageSpeed
+                          ? machine2Data.averageSpeed + " m/s"
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
                       <td>ANLIK</td>
-                      <td>{machine2Data.current + " m/s"}</td>
+                      <td>
+                        {machine2Data?.actualSpeed
+                          ? machine2Data.actualSpeed + " m/s"
+                          : "N/A"}
+                      </td>
+                    </tr>
+                    {/* <tr>
+                      <td>VERİM</td>
+                      <td>
+                        {machine2Data?.efficiency
+                          ? "% " + machine2Data.efficiency
+                          : "N/A"}
+                      </td>
                     </tr>
                     <tr>
-                      <td>VERİM</td>
-                      <td>{"% " + machine2Data.efficiency}</td>
+                      <td>OV</td>
+                      <td>
+                        {Math.round(parseFloat(machine1Data?.orderValue!))
+                          ? Math.round(parseFloat(machine1Data?.orderValue!))
+                          : "N/A"}
+                      </td>
                     </tr>
+                    <tr>
+                      <td>AV</td>
+                      <td>
+                        {Math.round(parseFloat(machine1Data?.actualValue!))
+                          ? Math.round(parseFloat(machine1Data?.actualValue!))
+                          : "N/A"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>calculate</td>
+                      <td>
+                        {Math.round(
+                          ((Math.round(
+                            parseFloat(machine1Data?.actualValue!)
+                          ) || 0) /
+                            (Math.round(
+                              parseFloat(machine1Data?.orderValue!)
+                            ) || 0)) *
+                            100
+                        )}
+                      </td>
+                    </tr> */}
                   </tbody>
                 </table>
-                <Popup isVisible={parseInt(machine2Data.efficiency) < 75}>
-                  {machine2Data.message || "Sebep"}
-                </Popup>
-              </RightColumn>
+                {getPopupMessage(machine2Data)}
+              </Column>
             </>
           ) : (
-            <RightColumn bgColor={machine1Data.color}>
+            <Column bgColor={machine1Data?.color || "#000"}>
               <table>
                 <tbody>
                   <tr>
                     <td>HEDEF</td>
-                    <td>{machine1Data.target + " m/s"}</td>
+                    <td>
+                      {machine1Data?.targetSpeed
+                        ? machine1Data.targetSpeed + " m/s"
+                        : "N/A"}
+                    </td>
                   </tr>
                   <tr>
                     <td>ORT</td>
-                    <td>{machine1Data.average + " m/s"}</td>
+                    <td>
+                      {machine1Data?.averageSpeed
+                        ? machine1Data.averageSpeed + " m/s"
+                        : "N/A"}
+                    </td>
                   </tr>
                   <tr>
                     <td>ANLIK</td>
-                    <td>{machine1Data.current + " m/s"}</td>
+                    <td>
+                      {machine1Data?.actualSpeed
+                        ? machine1Data.actualSpeed + " m/s"
+                        : "N/A"}
+                    </td>
                   </tr>
                   <tr>
                     <td>VERİM</td>
-                    <td>{"% " + machine1Data.efficiency}</td>
+                    <td>
+                      {machine1Data?.efficiency
+                        ? "% " + machine1Data.efficiency
+                        : "N/A"}
+                    </td>
                   </tr>
+                  {/* <tr>
+                    <td>OV</td>
+                    <td>
+                      {Math.round(parseFloat(machine1Data?.orderValue!))
+                        ? Math.round(parseFloat(machine1Data?.orderValue!))
+                        : "N/A"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>AV</td>
+                    <td>
+                      {Math.round(parseFloat(machine1Data?.actualValue!))
+                        ? Math.round(parseFloat(machine1Data?.actualValue!))
+                        : "N/A"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>calculate</td>
+                    <td>
+                      {Math.round(
+                        ((Math.round(parseFloat(machine1Data?.actualValue!)) ||
+                          0) /
+                          (Math.round(parseFloat(machine1Data?.orderValue!)) ||
+                            0)) *
+                          100
+                      )}
+                    </td>
+                  </tr> */}
                 </tbody>
               </table>
-              <Popup isVisible={parseInt(machine1Data.efficiency) < 75}>
-                {machine1Data.message || "Sebep"}
-              </Popup>
-            </RightColumn>
+              {getPopupMessage(machine1Data)}
+            </Column>
           )}
         </Content>
       </Container>
 
-      {activeMessage && (
+      {socketError && <LoadingOverlay>{socketError}</LoadingOverlay>}
+      {activeMessage ? (
         <>
           {activeMessage.type === "scrolling" && (
             <KayanYaziContainer textHeight={textHeight}>
-              <KayanYaziText ref={textRef}>
+              <KayanYaziText duration={getScrollSpeedDuration()}>
                 {activeMessage.message}
               </KayanYaziText>
             </KayanYaziContainer>
@@ -497,6 +750,8 @@ const KayanYazi: React.FC = () => {
             <FlashingText>{activeMessage.message}</FlashingText>
           )}
         </>
+      ) : (
+        renderProgressBar()
       )}
     </>
   );
