@@ -270,7 +270,7 @@ const KayanYazi: React.FC = () => {
     let socket: WebSocket | null = null;
 
     const connectToSocket = () => {
-      socket = new WebSocket(`ws://192.168.0.242:8081?token=${token}`);
+      socket = new WebSocket(`ws//scada.alveskablo.com:8081?token=${token}`);
 
       socket.onopen = () => {
         console.log("WebSocket bağlantısı kuruldu");
@@ -283,27 +283,38 @@ const KayanYazi: React.FC = () => {
 
       socket.onmessage = (event) => {
         const { machineId, data } = JSON.parse(event.data);
+        debugger;
         const machineData = {
           name: data.itemName,
           targetSpeed: convertValue(data.targetSpeed),
           averageSpeed: convertValue(data.averageSpeed),
           actualSpeed: convertValue(data.actualSpeed),
-          orderValue: data.orderValue,
-          actualValue: data.actualValue,
-          message: data.message,
-          idle: data.idle,
-          efficiency: convertValue(
-            (
-              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-              100
-            ).toString()
-          ),
-          color: renderColor(
-            (
-              (parseFloat(data.actualSpeed) / parseFloat(data.targetSpeed)) *
-              100
-            ).toString()
-          ),
+          orderValue: data.orderValue || "0",
+          actualValue: data.actualValue || "0",
+          message: data.message || "",
+          idle: data.idle || "0",
+          efficiency: (() => {
+            const actualSpeed = parseFloat(data.actualSpeed || "0");
+            const targetSpeed = parseFloat(data.targetSpeed || "0");
+
+            // Eğer targetSpeed 0 ise veya actualSpeed 0 ise, efficiency 0 olsun
+            if (isNaN(actualSpeed) || isNaN(targetSpeed) || targetSpeed === 0) {
+              return "0"; // Varsayılan değer olarak '0'
+            }
+
+            return convertValue(((actualSpeed / targetSpeed) * 100).toString());
+          })(),
+          color: (() => {
+            const actualSpeed = parseFloat(data.actualSpeed || "0");
+            const targetSpeed = parseFloat(data.targetSpeed || "0");
+
+            // Aynı şekilde color için de NaN ve 0 kontrolü
+            if (isNaN(actualSpeed) || isNaN(targetSpeed) || targetSpeed === 0) {
+              return renderColor("0");
+            }
+
+            return renderColor(((actualSpeed / targetSpeed) * 100).toString());
+          })(),
         };
 
         if (machineId === machine1) {
@@ -410,11 +421,27 @@ const KayanYazi: React.FC = () => {
     } else if (parseInt(value) >= 75) {
       return "#228B22";
     }
-    return "";
+    return "white";
   };
 
-  const convertValue = (value: string): string => {
-    return value?.includes(".") ? value?.split(".")[0] : value;
+  const convertValue = (value: any): string => {
+    // Null veya undefined kontrolü
+    if (value === undefined || value === null) {
+      return "";
+    }
+
+    // Eğer değer bir sayı ise string'e çevir
+    if (typeof value === "number") {
+      return value.toString();
+    }
+
+    // Eğer değer bir string ise ve nokta içeriyorsa, noktayla böl ve ilk kısmı al
+    if (typeof value === "string" && value.includes(".")) {
+      return value.split(".")[0];
+    }
+
+    // Diğer durumda olduğu gibi geri döndür
+    return value;
   };
 
   const getPopupMessage = (machineData: MachineDataType | null) => {
@@ -553,7 +580,7 @@ const KayanYazi: React.FC = () => {
                   <LeftSpan>VERİM</LeftSpan>
                   <RightSpan>
                     {machine1Data?.efficiency
-                      ? "% " + machine1Data.efficiency
+                      ? "% " + machine1Data.efficiency || 0
                       : "N/A"}
                   </RightSpan>
                 </Row>
@@ -589,7 +616,7 @@ const KayanYazi: React.FC = () => {
                   <LeftSpan>VERİM</LeftSpan>
                   <RightSpan>
                     {machine2Data?.efficiency
-                      ? "% " + machine2Data.efficiency
+                      ? "% " + machine2Data.efficiency || 0
                       : "N/A"}
                   </RightSpan>
                 </Row>
@@ -626,7 +653,7 @@ const KayanYazi: React.FC = () => {
                 <LeftSpan>VERİM</LeftSpan>
                 <RightSpan>
                   {machine1Data?.efficiency
-                    ? "% " + machine1Data.efficiency
+                    ? "% " + machine1Data.efficiency || 0
                     : "N/A"}
                 </RightSpan>
               </Row>
